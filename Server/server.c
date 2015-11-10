@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #define N_THREADS 10 //Число рабочих потоков
-#define MAXPENDING 5 // Выдаётся времени на запрос соединения
+#define MAXPENDING 2 // Выдаётся времени на запрос соединения
 //Структура с параметрами, которую передаём в каждый поток
 struct thread_param
 {
@@ -74,12 +74,24 @@ void* threadMain(void *tparam)
         //Получаем сообщение от клиента
 	while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
 	{
-		//Отправляем обратно клиенту
-		write(clntSock , client_message , strlen(client_message));
+                //Завершение работы сервера командой клиента
+                if(strstr(client_message, "serverclose"))
+                {
+                    goto endServer;
+                }
+		else
+                {   //Отправляем обратно клиенту
+		    write(clntSock , client_message , strlen(client_message));
+                    //Зачистка от мусора прошлой присланной строки от этого клиента
+                    //memset(&client_message, ' ', 2000);
+                    strcpy(client_message, "");
+                }
 	}
 
    }
    pthread_exit(NULL);
+endServer:
+   exit(1); 
 }
 
 int main(int argc, char *argv[])
@@ -101,5 +113,6 @@ int main(int argc, char *argv[])
     {
         pthread_join(thread_pool[i],NULL);
     }
+
     return 0;
 }
