@@ -1,2 +1,2 @@
 all:
-	gcc server.c
+	gcc server.c -lpthreads
