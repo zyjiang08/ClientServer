@@ -83,8 +83,7 @@ void* threadMain(void *tparam)
                 {   //Отправляем обратно клиенту
 		    write(clntSock , client_message , strlen(client_message));
                     //Зачистка от мусора прошлой присланной строки от этого клиента
-                    //memset(&client_message, ' ', 2000);
-                    strcpy(client_message, "");
+                    memset(&client_message, ' ', 100);
                 }
 	}
 
