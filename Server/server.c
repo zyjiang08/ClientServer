@@ -57,16 +57,11 @@ void* threadMain(void *tparam)
     struct thread_param *param = (struct thread_param *)tparam;
     int servSock = param -> serverSocket;
 
-
-    
     //Адрес клиента
     struct sockaddr_in clntAddr;
     char client_message[2000];
-    
     int read_size;
 
-    
-    
     for (;;) 
     {
         //Ожидание коннекта с клиентом
@@ -102,7 +97,6 @@ void* threadMain(void *tparam)
                 }
 	     }
          }
-
    }
    pthread_exit(NULL);
 endServer:
@@ -129,6 +123,5 @@ int main(int argc, char *argv[])
     {
         pthread_join(thread_pool[i],NULL);
     }
-
     return 0;
 }
