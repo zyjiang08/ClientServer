@@ -1,17 +1,14 @@
-/*
-    C ECHO client example using sockets
-*/
-#include<stdio.h> //printf
-#include<string.h>    //strlen
-#include<sys/socket.h>    //socket
-#include<arpa/inet.h> //inet_addr
+#include<stdio.h> 
+#include<string.h>    
+#include<sys/socket.h>   
+#include<arpa/inet.h>
  
 int main(int argc , char *argv[])
 {
     int sock;
     struct sockaddr_in server;
-    char message[1000] , server_reply[2000];
-     
+    char message[1000] , server_reply[2000], password[1000];
+
     //Create socket
     sock = socket(AF_INET , SOCK_STREAM , 0);
     if (sock == -1)
@@ -27,12 +24,34 @@ int main(int argc , char *argv[])
     //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
-        perror("connect failed. Error");
+        perror("Connect failed. Error");
         return 1;
     }
-     
-    puts("Connected\n");
-     
+    
+    printf("Enter password : ");
+    scanf("%s" , password);
+    printf("Checking password. Wait...\n");
+    if( send(sock , password , strlen(password) , 0) < 0)
+    {
+            puts("Send password failed");
+            return 1;
+    }
+    
+    sleep(5);
+    if( recv(sock , server_reply , 2000 , 0) < 0)
+    {
+            puts("recv failed");
+    }
+    if(strstr(server_reply, "adenied"))
+    {
+        printf("Error password. Access denied\n");
+        goto errorpass;
+    }
+    else
+    {
+        printf("Correct password. Access granted\n");
+    }
+    
     //keep communicating with server
     while(1)
     {
@@ -56,7 +75,7 @@ int main(int argc , char *argv[])
         puts("Server reply :");
         puts(server_reply);
     }
-     
+errorpass:
     close(sock);
     return 0;
 }

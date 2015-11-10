@@ -12,6 +12,7 @@
 struct thread_param
 {
     int serverSocket;
+    char authPass[2000];
 };
 //Все наши потоки
 pthread_t thread_pool[N_THREADS];
@@ -55,12 +56,16 @@ void* threadMain(void *tparam)
     //Приняли параметры в поток
     struct thread_param *param = (struct thread_param *)tparam;
     int servSock = param -> serverSocket;
+
+
     
     //Адрес клиента
     struct sockaddr_in clntAddr;
     char client_message[2000];
     
     int read_size;
+
+    
     
     for (;;) 
     {
@@ -71,9 +76,19 @@ void* threadMain(void *tparam)
         if (clntSock < 0)
             die("accept() failed");
 
-        //Получаем сообщение от клиента
-	while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
-	{
+        recv(clntSock , client_message , 2000 , 0);
+        if(strcmp(client_message, param -> authPass) != 0)
+        {   
+            write(clntSock , "adenied" , 7);
+        }
+        else
+        {
+            memset(&client_message, ' ', 100);
+            write(clntSock , "agranted" , 8);
+
+            //Получаем сообщение от клиента
+	    while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
+	    {
                 //Завершение работы сервера командой клиента
                 if(strstr(client_message, "serverclose"))
                 {
@@ -85,7 +100,8 @@ void* threadMain(void *tparam)
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
                 }
-	}
+	     }
+         }
 
    }
    pthread_exit(NULL);
@@ -102,6 +118,7 @@ int main(int argc, char *argv[])
     int i;
     struct thread_param param;
     param.serverSocket = servSock;
+    strcpy(param.authPass,"Pass10");
     //Содаём N_THREADS потоков
     for(i=0;i<N_THREADS;i++)
     {
