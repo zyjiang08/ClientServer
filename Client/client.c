@@ -37,7 +37,6 @@ int main(int argc , char *argv[])
             return 1;
     }
     
-    sleep(5);
     if( recv(sock , server_reply , 2000 , 0) < 0)
     {
             puts("recv failed");

@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #define N_THREADS 2 //Число рабочих потоков
-#define MAXPENDING 2 // Выдаётся времени на запрос соединения
+#define MAXPENDING 3 // Выдаётся времени на запрос соединения
 
 //Блокирующая очередь
 //Структура для очереди
@@ -166,7 +166,7 @@ void* threadMain(void *tparam)
         if (clntSock < 0)
             die("accept() failed");
 
-        recv(clntSock , client_message , 2000 , 0);
+        recv(clntSock , client_message, 2000 , 0);
         if(strcmp(client_message, param -> authPass) != 0)
         {  
             printf("%s\n", client_message);
@@ -177,7 +177,7 @@ void* threadMain(void *tparam)
         {
             memset(&client_message, ' ', 100);
             write(clntSock , "agranted" , 8);
-
+            puts("Client connected");
             //Получаем сообщение от клиента
 	    while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
 	    {
@@ -222,10 +222,10 @@ void* threadMain(void *tparam)
              if(read_size == 0 || read_size == -1)
 	     {
 		puts("Client disconnected");
+                close(clntSock);
 	     }
          }
    }
-   printf("servclsd now\n"); 
    pthread_exit(NULL);
 endServer:
    exit(1); 
@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
     //Содаём N_THREADS потоков
     for(i = 0; i < N_THREADS; i++)
     {
-        pthread_create(&thread_pool[i],NULL,&threadMain,(void*)&param);
+        pthread_create(&thread_pool[i], NULL, &threadMain, (void*)&param);
     }
     //Ждём запроса клиента. Если есть, то добавляем в очередь
     for(;;)
@@ -261,9 +261,9 @@ int main(int argc, char *argv[])
     }
 
     //Ожидаем завершения всех N_THREADS потоков
-    for(i=0;i<N_THREADS;i++)
+    for(i = 0;i < N_THREADS; i++)
     {
-        pthread_join(thread_pool[i],NULL);
+        pthread_join(thread_pool[i], NULL);
     }
     return 0;
 }
