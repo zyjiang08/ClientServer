@@ -184,6 +184,7 @@ void* threadMain(void *tparam)
                 //Завершение работы сервера командой клиента
                 if(strstr(client_message, "serverclose"))
                 {
+                    write(clntSock , "serverclose", 11);
                     goto endServer;
                 }
                 //Команда напоминания пароля пользователю
@@ -196,8 +197,8 @@ void* threadMain(void *tparam)
                 }
 		else
                 {   
-                    //Отправляем обратно клиенту
-		    write(clntSock , client_message , strlen(client_message));
+                    //Команда неизвестна
+		    write(clntSock , "unkncomm" , 8);
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100); 
                 }
@@ -235,7 +236,6 @@ int main(int argc, char *argv[])
     for(;;)
     {
         int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
-        //queue_put пытается добавить клиент в очередь, когда приходит запрос
         queue_put(&thread_q, clntSock);
     }
 

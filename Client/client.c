@@ -56,7 +56,7 @@ int main(int argc , char *argv[])
     //keep communicating with server
     while(1)
     {
-        printf("Enter message : ");
+        printf("cmd >> ");
         scanf("%s" , message);
          
         //Send some data
@@ -72,7 +72,19 @@ int main(int argc , char *argv[])
             puts("recv failed");
             break;
         }
-        printf("Server reply is: %s\n", server_reply); 
+
+        if(strstr(server_reply, "unkncomm"))
+        {
+            printf("out << Unknown command\n");
+            
+        }
+        else if(strstr(server_reply, "serverclose"))
+        {
+            printf("out << Server has been closed\n");
+            goto errorpass;
+        }
+        else
+            printf("out << %s\n", server_reply); 
     }
 errorpass:
     close(sock);
