@@ -195,6 +195,14 @@ void* threadMain(void *tparam)
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
                 }
+                //Команда напоминания команд
+                else if(strstr(client_message, "help"))
+                {
+                    //Отправляем обратно клиенту
+		    write(clntSock , "help", 4);
+                    //Зачистка от мусора прошлой присланной строки от этого клиента
+                    memset(&client_message, ' ', 100);
+                }
 		else
                 {   
                     //Команда неизвестна

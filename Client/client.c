@@ -76,12 +76,15 @@ int main(int argc , char *argv[])
         if(strstr(server_reply, "unkncomm"))
         {
             printf("out << Unknown command\n");
-            
         }
         else if(strstr(server_reply, "serverclose"))
         {
             printf("out << Server has been closed\n");
             goto errorpass;
+        }
+        else if(strstr(server_reply, "help"))
+        {
+            printf("out << Commands:\n    << serverclose - for close server\n    << help - for help\n    << remindpass - for password remind\n");
         }
         else
             printf("out << %s\n", server_reply); 
