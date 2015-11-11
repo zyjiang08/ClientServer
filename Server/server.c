@@ -1,6 +1,6 @@
-#include <stdio.h>      /* for printf() and fprintf() */
-#include <sys/socket.h> /* for socket(), bind(), and connect() */
-#include <arpa/inet.h>  /* for sockaddr_in and inet_ntoa() */
+#include <stdio.h>      // for printf() and fprintf()
+#include <sys/socket.h> // for socket(), bind(), and connect()
+#include <arpa/inet.h>  // for sockaddr_in and inet_ntoa()
 #include <stdlib.h>     // exit()
 #include <string.h>     // memset()
 #include <unistd.h>     // close() и write()
@@ -8,14 +8,18 @@
 
 #define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 2 // Выдаётся времени на запрос соединения
-/////////////////////Очередь/////////////////////////////////////
 
-struct message{
+//Блокирующая очередь
+//Структура для очереди
+struct message
+{
     int sock;
     struct message *next;
 };
 
-struct queue{
+//Очередь
+struct queue
+{
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     struct message *first;
@@ -25,18 +29,23 @@ struct queue{
 
 struct queue thread_q;
 
-void queue_init(struct queue *q){
+//Инициализация очереди
+void queue_init(struct queue *q)
+{
     q -> length = 0;
     q -> first = NULL;
     q -> last = NULL;
-    pthread_cond_init(&q->cond,NULL);
-    pthread_mutex_init(&q->mutex,NULL);
+    pthread_cond_init(&q -> cond,NULL);
+    pthread_mutex_init(&q -> mutex,NULL);
 }
 
-void queue_destroy(struct queue *q){
+//Удаление очереди
+void queue_destroy(struct queue *q)
+{
     struct message * temp;
     pthread_mutex_lock(&q->mutex);
-    while(q -> first){
+    while(q -> first)
+    {
         temp = q -> first -> next;
         free(q -> first);
         q -> first = temp;
@@ -45,76 +54,60 @@ void queue_destroy(struct queue *q){
     pthread_mutex_unlock(&q->mutex);
     pthread_mutex_destroy(&q -> mutex);
     pthread_cond_destroy(&q-> cond);
-
 }
 
-void queue_put(struct queue *q, int sock){
-
+//Добавление в очередь
+void queue_put(struct queue *q, int sock)
+{
     struct message *msg;
     msg = (struct message *)malloc(sizeof(msg));
     msg -> sock = sock;
     msg -> next = NULL;
-    pthread_mutex_lock(&q->mutex);
-    if(q->length == 0){
+    pthread_mutex_lock(&q -> mutex);
+    if(q -> length == 0)
+    {
         q -> last = msg;
         q -> first = msg;
         q -> length ++;
-        fprintf(stderr,"in put %d\n",q->length);
-    }else{
+    }
+    else
+    {
         q->last->next = msg; 
         q -> last = msg;
         q -> length ++;
-        fprintf(stderr," in put %d\n",q -> length);
- 
     }
-    pthread_cond_signal(&q->cond);
+    pthread_cond_signal(&q -> cond);
     pthread_mutex_unlock(&q -> mutex);
-    
 }
 
-int queue_get(struct queue *q){
+//Получение из очереди
+int queue_get(struct queue *q)
+{
     int sock;
     struct message *temp;
     pthread_mutex_lock(&q -> mutex);
-    fprintf(stderr,"from get lock%d\n",q -> length);
  
-    while(q -> length == 0){
+    while(q -> length == 0)
+    {
         pthread_cond_wait(&q -> cond, &q -> mutex);
     }    
     sock = q -> first -> sock;
     temp = q -> first;
     q -> first = q -> first -> next;
     q -> length--;   
-    fprintf(stderr,"in get %d\n",q -> length);
  
-    if(q -> length == 0){
+    if(q -> length == 0)
+    {
         q -> last == NULL;
-        }
+    }
     free(temp);
     pthread_mutex_unlock(&q -> mutex);
-    fprintf(stderr,"from get unlock %d\n",q -> length);
- 
     return sock;
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-
 
 //Структура с параметрами, которую передаём в каждый поток
 struct thread_param
 {
-    //int serverSocket;
     char authPass[2000];
 };
 //Все наши потоки
@@ -158,7 +151,6 @@ void* threadMain(void *tparam)
 {
     //Приняли параметры в поток
     struct thread_param *param = (struct thread_param *)tparam;
-    //int servSock = param -> serverSocket;
 
     //Адрес клиента
     struct sockaddr_in clntAddr;
@@ -169,8 +161,6 @@ void* threadMain(void *tparam)
     {
         //Ожидание коннекта с клиентом
 
-        //unsigned int clntLen = sizeof(clntAddr); 
-        //int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
         int clntSock = queue_get(&thread_q);
 
         if (clntSock < 0)
@@ -206,11 +196,10 @@ void* threadMain(void *tparam)
                 }
 		else
                 {   
-                     //Отправляем обратно клиенту
+                    //Отправляем обратно клиенту
 		    write(clntSock , client_message , strlen(client_message));
                     //Зачистка от мусора прошлой присланной строки от этого клиента
-                    memset(&client_message, ' ', 100);
-                    
+                    memset(&client_message, ' ', 100); 
                 }
 	     }
          }
@@ -231,22 +220,22 @@ int main(int argc, char *argv[])
     //Создали сокет
     int servSock = createServerSocket(servPort);
     int i;
-
+    //Инициализировали очередь
     queue_init(&thread_q);
-
+    //Задали параметры
     struct thread_param param;
-    //param.serverSocket = servSock;
     strcpy(param.authPass,"Pass10");
+
     //Содаём N_THREADS потоков
     for(i = 0; i < N_THREADS; i++)
     {
         pthread_create(&thread_pool[i],NULL,&threadMain,(void*)&param);
     }
-
+    //Ждём запроса клиента. Если есть, то добавляем в очередь
     for(;;)
     {
         int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
-        //queue_put пытается добавить когда приходит запрос клиента
+        //queue_put пытается добавить клиент в очередь, когда приходит запрос
         queue_put(&thread_q, clntSock);
     }
 
