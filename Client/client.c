@@ -84,7 +84,12 @@ int main(int argc , char *argv[])
         }
         else if(strstr(server_reply, "help"))
         {
-            printf("out << Commands:\n    << serverclose - for close server\n    << help - for help\n    << remindpass - for password remind\n");
+            printf("out << Commands:\n    << serverclose - for close server\n    << help - for help\n    << remindpass - for password remind\n    << clientclose - close current client\n");
+        }
+        else if(strstr(server_reply, "clientclose"))
+        {
+            printf("out << Client will be closed\n");
+            goto errorpass;
         }
         else
             printf("out << %s\n", server_reply); 

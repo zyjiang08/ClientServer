@@ -203,6 +203,14 @@ void* threadMain(void *tparam)
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
                 }
+                //Команда закрытия клиента
+                else if(strstr(client_message, "clientclose"))
+                {
+                    //Отправляем обратно клиенту
+		    write(clntSock , "clientclose", 11);
+                    //Зачистка от мусора прошлой присланной строки от этого клиента
+                    memset(&client_message, ' ', 100);
+                }
 		else
                 {   
                     //Команда неизвестна
