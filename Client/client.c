@@ -42,6 +42,7 @@ int main(int argc , char *argv[])
     {
             puts("recv failed");
     }
+    printf("%s\n", server_reply);
     if(strstr(server_reply, "adenied"))
     {
         printf("Error password. Access denied\n");
@@ -71,9 +72,7 @@ int main(int argc , char *argv[])
             puts("recv failed");
             break;
         }
-         
-        puts("Server reply :");
-        puts(server_reply);
+        printf("Server reply is: %s\n", server_reply); 
     }
 errorpass:
     close(sock);

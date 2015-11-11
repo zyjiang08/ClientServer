@@ -6,7 +6,7 @@
 #include <unistd.h>     // close() и write()
 #include <pthread.h>
 
-#define N_THREADS 10 //Число рабочих потоков
+#define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 2 // Выдаётся времени на запрос соединения
 //Структура с параметрами, которую передаём в каждый поток
 struct thread_param
@@ -73,7 +73,9 @@ void* threadMain(void *tparam)
 
         recv(clntSock , client_message , 2000 , 0);
         if(strcmp(client_message, param -> authPass) != 0)
-        {   
+        {  
+            printf("%s\n", client_message);
+            printf("%s\n", param -> authPass);
             write(clntSock , "adenied" , 7);
         }
         else
@@ -89,11 +91,21 @@ void* threadMain(void *tparam)
                 {
                     goto endServer;
                 }
+                //Команда напоминания пароля пользователю
+                else if(strstr(client_message, "remindpass"))
+                {
+                    //Отправляем обратно клиенту
+		    write(clntSock , param -> authPass, strlen(client_message));
+                    //Зачистка от мусора прошлой присланной строки от этого клиента
+                    memset(&client_message, ' ', 100);
+                }
 		else
-                {   //Отправляем обратно клиенту
+                {   
+                     //Отправляем обратно клиенту
 		    write(clntSock , client_message , strlen(client_message));
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
+                    
                 }
 	     }
          }
