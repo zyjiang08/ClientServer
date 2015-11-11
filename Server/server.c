@@ -8,10 +8,113 @@
 
 #define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 2 // Выдаётся времени на запрос соединения
+/////////////////////Очередь/////////////////////////////////////
+
+struct message{
+    int sock;
+    struct message *next;
+};
+
+struct queue{
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    struct message *first;
+    struct message *last;
+    unsigned int length;
+};
+
+struct queue thread_q;
+
+void queue_init(struct queue *q){
+    q -> length = 0;
+    q -> first = NULL;
+    q -> last = NULL;
+    pthread_cond_init(&q->cond,NULL);
+    pthread_mutex_init(&q->mutex,NULL);
+}
+
+void queue_destroy(struct queue *q){
+    struct message * temp;
+    pthread_mutex_lock(&q->mutex);
+    while(q -> first){
+        temp = q -> first -> next;
+        free(q -> first);
+        q -> first = temp;
+    }  
+    free(q -> last);
+    pthread_mutex_unlock(&q->mutex);
+    pthread_mutex_destroy(&q -> mutex);
+    pthread_cond_destroy(&q-> cond);
+
+}
+
+void queue_put(struct queue *q, int sock){
+
+    struct message *msg;
+    msg = (struct message *)malloc(sizeof(msg));
+    msg -> sock = sock;
+    msg -> next = NULL;
+    pthread_mutex_lock(&q->mutex);
+    if(q->length == 0){
+        q -> last = msg;
+        q -> first = msg;
+        q -> length ++;
+        fprintf(stderr,"in put %d\n",q->length);
+    }else{
+        q->last->next = msg; 
+        q -> last = msg;
+        q -> length ++;
+        fprintf(stderr," in put %d\n",q -> length);
+ 
+    }
+    pthread_cond_signal(&q->cond);
+    pthread_mutex_unlock(&q -> mutex);
+    
+}
+
+int queue_get(struct queue *q){
+    int sock;
+    struct message *temp;
+    pthread_mutex_lock(&q -> mutex);
+    fprintf(stderr,"from get lock%d\n",q -> length);
+ 
+    while(q -> length == 0){
+        pthread_cond_wait(&q -> cond, &q -> mutex);
+    }    
+    sock = q -> first -> sock;
+    temp = q -> first;
+    q -> first = q -> first -> next;
+    q -> length--;   
+    fprintf(stderr,"in get %d\n",q -> length);
+ 
+    if(q -> length == 0){
+        q -> last == NULL;
+        }
+    free(temp);
+    pthread_mutex_unlock(&q -> mutex);
+    fprintf(stderr,"from get unlock %d\n",q -> length);
+ 
+    return sock;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
 //Структура с параметрами, которую передаём в каждый поток
 struct thread_param
 {
-    int serverSocket;
+    //int serverSocket;
     char authPass[2000];
 };
 //Все наши потоки
@@ -55,7 +158,7 @@ void* threadMain(void *tparam)
 {
     //Приняли параметры в поток
     struct thread_param *param = (struct thread_param *)tparam;
-    int servSock = param -> serverSocket;
+    //int servSock = param -> serverSocket;
 
     //Адрес клиента
     struct sockaddr_in clntAddr;
@@ -66,8 +169,10 @@ void* threadMain(void *tparam)
     {
         //Ожидание коннекта с клиентом
 
-        unsigned int clntLen = sizeof(clntAddr); 
-        int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
+        //unsigned int clntLen = sizeof(clntAddr); 
+        //int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
+        int clntSock = queue_get(&thread_q);
+
         if (clntSock < 0)
             die("accept() failed");
 
@@ -119,17 +224,32 @@ int main(int argc, char *argv[])
 {
     //Задали порт
     unsigned short servPort = 8888;
+
+    struct sockaddr_in clntAddr;
+    unsigned int clntLen = sizeof(clntAddr);
+
     //Создали сокет
     int servSock = createServerSocket(servPort);
     int i;
+
+    queue_init(&thread_q);
+
     struct thread_param param;
-    param.serverSocket = servSock;
+    //param.serverSocket = servSock;
     strcpy(param.authPass,"Pass10");
     //Содаём N_THREADS потоков
-    for(i=0;i<N_THREADS;i++)
+    for(i = 0; i < N_THREADS; i++)
     {
         pthread_create(&thread_pool[i],NULL,&threadMain,(void*)&param);
     }
+
+    for(;;)
+    {
+        int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
+        //queue_put пытается добавить когда приходит запрос клиента
+        queue_put(&thread_q, clntSock);
+    }
+
     //Ожидаем завершения всех N_THREADS потоков
     for(i=0;i<N_THREADS;i++)
     {
