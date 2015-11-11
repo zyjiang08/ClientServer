@@ -219,8 +219,13 @@ void* threadMain(void *tparam)
                     memset(&client_message, ' ', 100); 
                 }
 	     }
+             if(read_size == 0 || read_size == -1)
+	     {
+		puts("Client disconnected");
+	     }
          }
    }
+   printf("servclsd now\n"); 
    pthread_exit(NULL);
 endServer:
    exit(1); 
