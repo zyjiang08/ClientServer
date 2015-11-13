@@ -110,11 +110,6 @@ int queue_get(struct queue *q)
     return sock;
 }
 
-//Структура с параметрами, которую передаём в каждый поток
-struct thread_param
-{
-    char authPass[2000];
-};
 //Все наши потоки
 pthread_t thread_pool[N_THREADS];
 
@@ -226,7 +221,7 @@ void* threadMain(void *tparam)
                 else if(strstr(client_message, "remindpass"))
                 {
                     //Отправляем обратно клиенту
-         	    write(clntSock , param -> authPass, strlen(client_message));
+         	    write(clntSock , pass_name, 50);
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
                 }
@@ -283,14 +278,11 @@ int main(int argc, char *argv[])
     int i;
     //Инициализировали очередь
     queue_init(&thread_q);
-    //Задали параметры
-    struct thread_param param;
-    strcpy(param.authPass,"Pass10");
 
     //Содаём N_THREADS потоков
     for(i = 0; i < N_THREADS; i++)
     {
-        pthread_create(&thread_pool[i], NULL, &threadMain, (void*)&param);
+        pthread_create(&thread_pool[i], NULL, &threadMain, NULL);
     }
 
     int clntSock;
