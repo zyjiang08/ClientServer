@@ -149,8 +149,11 @@ static int createServerSocket(unsigned short port)
 
 void* threadMain(void *tparam)
 {
+    FILE *fp;
 
-    
+
+
+
     pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
     char loopstart = 0; // Старт бесконечного цикла сначала выключен
     //Приняли параметры в поток
@@ -179,15 +182,10 @@ void* threadMain(void *tparam)
     pthread_mutex_unlock( &mymutex ); //анлочим мьютекс
     
     if(loopstart == 1)
-{
-
-    for (;;) 
     {
         recv(clntSock , client_message, 2000 , 0);
         if(strcmp(client_message, param -> authPass) != 0)
         {  
-            printf("%s\n", client_message);
-            printf("%s\n", param -> authPass);
             write(clntSock , "adenied" , 7);
         }
         else
@@ -196,8 +194,10 @@ void* threadMain(void *tparam)
             write(clntSock , "agranted" , 8);
             puts("Client connected");
             //Получаем сообщение от клиента
-	    while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
+            while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
 	    {
+                puts(">>:");
+                puts(client_message);
                 //Завершение работы сервера командой клиента
                 if(strstr(client_message, "serverclose"))
                 {
@@ -208,14 +208,14 @@ void* threadMain(void *tparam)
                 else if(strstr(client_message, "remindpass"))
                 {
                     //Отправляем обратно клиенту
-		    write(clntSock , param -> authPass, strlen(client_message));
+         	    write(clntSock , param -> authPass, strlen(client_message));
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
                 }
                 //Команда напоминания команд
                 else if(strstr(client_message, "help"))
                 {
-                    //Отправляем обратно клиенту
+                   //Отправляем обратно клиенту
 		    write(clntSock , "help", 4);
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100);
@@ -243,8 +243,7 @@ void* threadMain(void *tparam)
                 goto STARTSNEW;
 	     }
          }
-   }
-}
+    }
    pthread_exit(NULL);
 endServer:
    exit(1); 
