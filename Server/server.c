@@ -5,6 +5,11 @@
 #include <string.h>     // memset()
 #include <unistd.h>     // close() и write()
 #include <pthread.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <errno.h>
 
 #define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 3 // Выдаётся времени на запрос соединения
@@ -149,11 +154,6 @@ static int createServerSocket(unsigned short port)
 
 void* threadMain(void *tparam)
 {
-    FILE *fp;
-
-
-
-
     pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
     char loopstart = 0; // Старт бесконечного цикла сначала выключен
     //Приняли параметры в поток
@@ -176,27 +176,45 @@ void* threadMain(void *tparam)
             die("accept() failed");
         else
             loopstart = 1; //включаем бесконечный цикл
-            
     }
 
     pthread_mutex_unlock( &mymutex ); //анлочим мьютекс
     
     if(loopstart == 1)
-    {
-        recv(clntSock , client_message, 2000 , 0);
-        if(strcmp(client_message, param -> authPass) != 0)
-        {  
-            write(clntSock , "adenied" , 7);
-        }
-        else
-        {
-            memset(&client_message, ' ', 100);
-            write(clntSock , "agranted" , 8);
-            puts("Client connected");
-            //Получаем сообщение от клиента
+    {   
+        //Проверка присланного клиентом пароля
+        int bytes_r;
+        char user_name[2048], pass_name[2048], fname[50];
+        bytes_r = recv(clntSock, user_name, 2048, 0);
+        user_name[bytes_r] = '\0';
+        bytes_r = recv(clntSock, pass_name, 2048, 0);
+	pass_name[bytes_r] = '\0';
+        char chk[100],fi[100],fpass[100];
+        int y = 0;
+        //Считаем пароли для сверки из файла и проверяем
+	FILE *fp = fopen("pass.txt","r");
+	while(!feof(fp))
+	{	
+            fscanf(fp, "%s", fname);
+            fscanf(fp, "%s", fpass);
+	    strcpy(fi, fpass);
+	    if((strcmp(fi, pass_name) == 0) && (strcmp(fname, user_name) == 0))
+	    {	
+                y++;
+	    }
+       }
+       fclose(fp);
+       if(y < 0 || y == 0)
+       {
+           write(clntSock , "adenied" , 7);
+       }
+       else
+       {
+           write(clntSock , "agranted" , 8);
+           puts("Client connected");
+           //Получаем сообщение от клиента
             while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
 	    {
-                puts(">>:");
                 puts(client_message);
                 //Завершение работы сервера командой клиента
                 if(strstr(client_message, "serverclose"))
@@ -243,7 +261,8 @@ void* threadMain(void *tparam)
                 goto STARTSNEW;
 	     }
          }
-    }
+       }	
+   
    pthread_exit(NULL);
 endServer:
    exit(1); 

@@ -9,7 +9,7 @@ int main(int argc , char *argv[])
     struct sockaddr_in server;
     char message[1000] , server_reply[2000], password[1000];
 
-    //Create socket
+    //Создаём сокет
     sock = socket(AF_INET , SOCK_STREAM , 0);
     if (sock == -1)
     {
@@ -21,51 +21,49 @@ int main(int argc , char *argv[])
     server.sin_family = AF_INET;
     server.sin_port = htons( 8888 );
  
-    //Connect to remote server
+    //Коннект к удалённому серверу
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
         perror("Connect failed. Error");
         return 1;
     }
     
-    printf("Enter password : ");
-    scanf("%s" , password);
-    printf("Checking password. Wait...\n");
-    if( send(sock , password , strlen(password) , 0) < 0)
-    {
-            puts("Send password failed");
-            return 1;
-    }
-    
-    if( recv(sock , server_reply , 2000 , 0) < 0)
-    {
-            puts("recv failed");
-    }
-    printf("%s\n", server_reply);
+    //Ввод пароля и логина
+    char user_data[2048], pass_data[2048];
+
+    printf("Input ssh username: ");
+    scanf("%s",user_data);
+    send(sock, user_data, strlen(user_data), 0);
+    printf("Input ssh password: ");
+    scanf("%s",pass_data);
+    send(sock, pass_data, strlen(pass_data), 0);
+
+    int bytes_r = recv(sock,server_reply,2048,0);
+    server_reply[bytes_r] = '\0';
     if(strstr(server_reply, "adenied"))
     {
-        printf("Error password. Access denied\n");
-        goto errorpass;
+         printf("Error password. Access denied\n");
+         goto errorpass;
     }
     else
     {
-        printf("Correct password. Access granted\n");
+         printf("Correct password. Access granted\n");
     }
     
-    //keep communicating with server
+    //Если данные верны, то работаем
     while(1)
     {
         printf("cmd >> ");
         scanf("%s" , message);
          
-        //Send some data
+        //Запрос серверу
         if( send(sock , message , strlen(message) , 0) < 0)
         {
             puts("Send failed");
             return 1;
         }
          
-        //Receive a reply from the server
+        //Ответ сервера
         if( recv(sock , server_reply , 2000 , 0) < 0)
         {
             puts("recv failed");
