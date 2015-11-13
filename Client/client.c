@@ -53,7 +53,7 @@ int main(int argc , char *argv[])
     //Если данные верны, то работаем
     while(1)
     {
-        printf("cmd >> ");
+        printf("ssh@%s >> ",user_data);
         scanf("%s" , message);
          
         //Запрос серверу
@@ -72,24 +72,24 @@ int main(int argc , char *argv[])
 
         if(strstr(server_reply, "unkncomm"))
         {
-            printf("out << Unknown command\n");
+            printf("ssh@server << Unknown command\n");
         }
         else if(strstr(server_reply, "serverclose"))
         {
-            printf("out << Server has been closed\n");
+            printf("ssh@server << Server has been closed\n");
             goto errorpass;
         }
         else if(strstr(server_reply, "help"))
         {
-            printf("out << Commands:\n    << serverclose - for close server\n    << help - for help\n    << remindpass - for password remind\n    << clientclose - close current client\n");
+            printf("ssh@server << Commands:\n< serverclose - for close server\n< help - for help\n< remindpass - for password remind\n< clientclose - close current client\n");
         }
         else if(strstr(server_reply, "clientclose"))
         {
-            printf("out << Client will be closed\n");
+            printf("ssh@server << Client will be closed\n");
             goto errorpass;
         }
         else
-            printf("out << %s\n", server_reply); 
+            printf("ssh@server << %s\n", server_reply); 
     }
 errorpass:
     close(sock);

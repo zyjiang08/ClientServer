@@ -286,10 +286,10 @@ int main(int argc, char *argv[])
     }
 
     int clntSock;
+    puts("Server started. Waiting for connections...");
     //Ждём запроса клиента. Если есть, то добавляем в очередь
     for(;;)
     {
-        
         if( clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen))
         {
             queue_put(&thread_q, clntSock);
