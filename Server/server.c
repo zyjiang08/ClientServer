@@ -8,6 +8,9 @@
 
 #define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 3 // Выдаётся времени на запрос соединения
+pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
+char loopstart = 0; // Старт бесконечного цикла
+
 
 //Блокирующая очередь
 //Структура для очереди
@@ -109,6 +112,7 @@ int queue_get(struct queue *q)
 struct thread_param
 {
     char authPass[2000];
+    int mutexUnlocker;
 };
 //Все наши потоки
 pthread_t thread_pool[N_THREADS];
@@ -149,6 +153,7 @@ static int createServerSocket(unsigned short port)
 
 void* threadMain(void *tparam)
 {
+    
     //Приняли параметры в поток
     struct thread_param *param = (struct thread_param *)tparam;
 
@@ -156,6 +161,12 @@ void* threadMain(void *tparam)
     struct sockaddr_in clntAddr;
     char client_message[2000];
     int read_size;
+
+    pthread_mutex_lock( &mymutex );
+
+    if( loopstart == 0 )
+        pthread_mutex_unlock( &mymutex );
+    
 
     for (;;) 
     {
@@ -222,6 +233,7 @@ void* threadMain(void *tparam)
              if(read_size == 0 || read_size == -1)
 	     {
 		puts("Client disconnected");
+                loopstart = 0;
                 close(clntSock);
 	     }
          }
@@ -247,17 +259,24 @@ int main(int argc, char *argv[])
     //Задали параметры
     struct thread_param param;
     strcpy(param.authPass,"Pass10");
+    param.mutexUnlocker = 0; 
 
     //Содаём N_THREADS потоков
     for(i = 0; i < N_THREADS; i++)
     {
         pthread_create(&thread_pool[i], NULL, &threadMain, (void*)&param);
     }
+
+    int clntSock;
     //Ждём запроса клиента. Если есть, то добавляем в очередь
     for(;;)
     {
-        int clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen);
-        queue_put(&thread_q, clntSock);
+        
+        if( clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen))
+        {
+            queue_put(&thread_q, clntSock);
+            loopstart = 1;
+        }
     }
 
     //Ожидаем завершения всех N_THREADS потоков
