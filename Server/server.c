@@ -152,8 +152,6 @@ void* threadMain(void *tparam)
     pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
     char loopstart = 0; // Старт бесконечного цикла сначала выключен
     //Приняли параметры в поток
-
-    //STARTSNEW:
     struct thread_param *param = (struct thread_param *)tparam;
 
     //Адрес клиента
@@ -207,6 +205,11 @@ void* threadMain(void *tparam)
        {
            write(clntSock , "agranted" , 8);
            puts("Client connected");
+          
+           chdir(user_name);
+	   system("pwd");
+
+
            //Получаем сообщение от клиента
             while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
 	    {
@@ -257,7 +260,6 @@ void* threadMain(void *tparam)
 	     }
          }
        }	
-   
    pthread_exit(NULL);
 endServer:
    exit(1); 
