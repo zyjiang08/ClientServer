@@ -208,7 +208,7 @@ void* threadMain(void *tparam)
           
            chdir(user_name);
 	   system("pwd");
-
+           system("ls");
 
            //Получаем сообщение от клиента
             while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
@@ -246,10 +246,16 @@ void* threadMain(void *tparam)
                 }
 		else
                 {   
-                    //Команда неизвестна
-		    write(clntSock , "unkncomm" , 8);
+                    write(clntSock , "unkncomm" , 8);
+                    
+                    //Добавляем лог в файл в конец и выполняем команду
+                    strcat(client_message, " | tee -a logfile.txt");
+                    system(client_message);
+    
                     //Зачистка от мусора прошлой присланной строки от этого клиента
                     memset(&client_message, ' ', 100); 
+                    //Удаляем файл, чтобы в следующий раз начать лог сначала
+                    system("rm logfile.txt");
                 }
 	     }
              if(read_size == 0 || read_size == -1)
@@ -299,7 +305,7 @@ int main(int argc, char *argv[])
     }
 
     //Ожидаем завершения всех N_THREADS потоков
-    for(i = 0;i < N_THREADS; i++)
+    for(i = 0; i < N_THREADS; i++)
     {
         pthread_join(thread_pool[i], NULL);
     }
