@@ -14,6 +14,9 @@
 #define N_THREADS 2 //Число рабочих потоков
 #define MAXPENDING 3 // Выдаётся времени на запрос соединения
 
+int fileLong = 0; // длина файла вывода
+char buf[2048];
+
 //Блокирующая очередь
 //Структура для очереди
 struct message
@@ -156,7 +159,7 @@ void* threadMain(void *tparam)
 
     //Адрес клиента
     struct sockaddr_in clntAddr;
-    char client_message[2000];
+    char client_message[2048];
     int read_size;
 
     int clntSock;
@@ -211,9 +214,9 @@ void* threadMain(void *tparam)
            system("ls");
 
            //Получаем сообщение от клиента
-            while( (read_size = recv(clntSock , client_message , 2000 , 0)) > 0 )
+            while( (read_size = recv(clntSock , client_message , 2048 , 0)) > 0 )
 	    {
-                puts(client_message);
+                //puts(client_message);
                 //Завершение работы сервера командой клиента
                 if(strstr(client_message, "serverclose"))
                 {
@@ -246,16 +249,32 @@ void* threadMain(void *tparam)
                 }
 		else
                 {   
-                    write(clntSock , "unkncomm" , 8);
+                    //Зануляем буферную переменную, куда всё будем копировать
+                    buf[0] = '\0';
+                    //Копируем в буферную переменную сначала команду от клиента, а потом команду логгирования в файл
+                    strcat(buf, client_message);
+                    strcat(buf, " | tee logfile.txt");
+                    //Выполняем команду, образовавшуюся в буферной переменной, на сервере
+                    system(buf);
+
+                    //Считаем число строк в лог файле
+	            FILE *fNumOfStrings;
+	            char line[256];
+	            fNumOfStrings = fopen("logfile.txt", "r");
+	            while(fgets(line, sizeof(line), fNumOfStrings) != NULL)
+  		        fileLong++;
+	            fclose(fNumOfStrings);
+                    // Переводим число в строку
+                    sprintf(line, "%d", fileLong);
+                     //Отправляем сие число клиенту (длину). Едва ли оно шестизначное и выше
+                    write(clntSock, line , 5);
                     
-                    //Добавляем лог в файл в конец и выполняем команду
-                    strcat(client_message, " | tee -a logfile.txt");
-                    system(client_message);
     
                     //Зачистка от мусора прошлой присланной строки от этого клиента
-                    memset(&client_message, ' ', 100); 
+                    client_message[0] = '\0';
                     //Удаляем файл, чтобы в следующий раз начать лог сначала
                     system("rm logfile.txt");
+                    fileLong = 0;
                 }
 	     }
              if(read_size == 0 || read_size == -1)
