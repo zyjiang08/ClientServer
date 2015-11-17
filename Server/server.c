@@ -257,20 +257,30 @@ void* threadMain(void *tparam)
                     //Выполняем команду, образовавшуюся в буферной переменной, на сервере
                     system(buf);
 
-                    //Считаем число строк в лог файле
-	            FILE *fNumOfStrings;
-	            char line[256];
-	            fNumOfStrings = fopen("logfile.txt", "r");
-	            while(fgets(line, sizeof(line), fNumOfStrings) != NULL)
-  		        fileLong++;
-	            fclose(fNumOfStrings);
-                    // Переводим число в строку
-                    sprintf(line, "%d", fileLong);
-                     //Отправляем сие число клиенту (длину). Едва ли оно шестизначное и выше
-                    write(clntSock, line , 5);
-                    
+                    //Зануляем буферную переменную, куда всё будем копировать. Старое уже не надо
+                    buf[0] = '\0';
+                    //Соединяем файл в строку построчно
+                    FILE *fsend;
+                    char line[256];
+                    fsend = fopen("logfile.txt", "r");
+                    int first = 0;
+                    while(fgets(line, sizeof(line), fsend) != NULL)
+                    {  
+                        if(first == 0)
+                        {
+                            strcat(buf, "\n");
+                            strcat(buf, line);
+                            first = 1;
+                        }
+                        else
+  		            strcat(buf, line);
+                    }
+                    fclose(fsend);   
+                    //Отправляем весь файл
+                    write(clntSock, buf , 2048);                 
     
                     //Зачистка от мусора прошлой присланной строки от этого клиента
+                    memset(&client_message, ' ', 100);
                     client_message[0] = '\0';
                     //Удаляем файл, чтобы в следующий раз начать лог сначала
                     system("rm logfile.txt");
@@ -285,7 +295,6 @@ void* threadMain(void *tparam)
 	     }
          }
        }	
-   pthread_exit(NULL);
 endServer:
    exit(1); 
 STARTSNEW:

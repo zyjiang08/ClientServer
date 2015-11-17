@@ -7,7 +7,7 @@ int main(int argc , char *argv[])
 {
     int sock;
     struct sockaddr_in server;
-    char message[1000] , server_reply[2000], password[1000];
+    char message[1024] , server_reply[2048], password[1024];
 
     //Создаём сокет
     sock = socket(AF_INET , SOCK_STREAM , 0);
@@ -64,24 +64,20 @@ int main(int argc , char *argv[])
         }
          
         //Ответ сервера
-        if( recv(sock , server_reply , 2000 , 0) < 0)
+        if( recv(sock , server_reply , 2048 , 0) < 0)
         {
             puts("recv failed");
             break;
         }
 
-        if(strstr(server_reply, "unkncomm"))
-        {
-            printf("ssh@server << Unknown command\n");
-        }
-        else if(strstr(server_reply, "serverclose"))
+        if(strstr(server_reply, "serverclose"))
         {
             printf("ssh@server << Server has been closed\n");
             goto errorpass;
         }
         else if(strstr(server_reply, "help"))
         {
-            printf("ssh@server << Commands:\n< serverclose - for close server\n< help - for help\n< remindpass - for password remind\n< clientclose - close current client\n");
+            printf("ssh@server << Specific commands:\n< serverclose - for close server\n< help - for help\n< remindpass - for password remind\n< clientclose - close current client\n");
         }
         else if(strstr(server_reply, "clientclose"))
         {
@@ -89,7 +85,9 @@ int main(int argc , char *argv[])
             goto errorpass;
         }
         else
-            printf("ssh@server << %s\n", server_reply); 
+        {
+                printf("ssh@server << %s\n", server_reply); 
+        }
     }
 errorpass:
     close(sock);
