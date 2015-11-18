@@ -1,2 +1,2 @@
 all:
-	gcc server.c -lpthread
+	gcc server.c -lpthread -lcrypt

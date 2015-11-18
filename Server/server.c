@@ -5,11 +5,12 @@
 #include <string.h>     // memset()
 #include <unistd.h>     // close() и write()
 #include <pthread.h>    // threads
+#include <crypt.h>
 
 #define N_THREADS 4 //Число рабочих потоков
 #define MAXPENDING 3 // Выдаётся времени на запрос соединения
 
-char buf[2048];
+char buf[2048], md5salt[2048];
 
 //Блокирующая очередь
 //Структура для очереди
@@ -53,7 +54,7 @@ void queue_destroy(struct queue *q)
         q -> first = temp;
     }  
     free(q -> last);
-    pthread_mutex_unlock(&q->mutex);
+    pthread_mutex_unlock(&q -> mutex);
     pthread_mutex_destroy(&q -> mutex);
     pthread_cond_destroy(&q-> cond);
 }
@@ -180,13 +181,26 @@ void* threadMain(void *tparam)
             pass_name[bytes_r] = '\0';
             char chk[100],fi[100],fpass[100];
             int y = 0;
+            char *opCrypt;
             //Считаем пароли для сверки из файла и проверяем
             FILE *fp = fopen("pass.txt","r");
             while(!feof(fp))
             {	
                 fscanf(fp, "%s", fname);
                 fscanf(fp, "%s", fpass);
-	        strcpy(fi, fpass);
+                
+                //Шифрование
+                //Зануляем буферную переменную, куда всё будем копировать
+                md5salt[0] = '\0';
+                //salt в md5 формате: $1$ <password> $
+                strcat(md5salt, "$1$");
+                strcat(md5salt, fname);
+                strcat(md5salt, "$");
+     
+                opCrypt = crypt(fpass, md5salt);
+                strcpy(fi, opCrypt);
+
+                //Сверяем присланное зашифрованное с прочитанным и зашифрованным                
 	        if((strcmp(fi, pass_name) == 0) && (strcmp(fname, user_name) == 0))
 	        {	
                     y++;

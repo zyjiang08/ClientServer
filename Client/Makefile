@@ -1,2 +1,2 @@
 all:
-	gcc client.c
+	gcc client.c -lcrypt
