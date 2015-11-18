@@ -4,14 +4,9 @@
 #include <stdlib.h>     // exit()
 #include <string.h>     // memset()
 #include <unistd.h>     // close() и write()
-#include <pthread.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <errno.h>
+#include <pthread.h>    // threads
 
-#define N_THREADS 2 //Число рабочих потоков
+#define N_THREADS 4 //Число рабочих потоков
 #define MAXPENDING 3 // Выдаётся времени на запрос соединения
 
 char buf[2048];
@@ -116,9 +111,9 @@ int queue_get(struct queue *q)
 pthread_t thread_pool[N_THREADS];
 
 //На сервере возникла ошибка и он прекращает работу, выводя её
-static void die(const char *message)
+static void serverMustBeClosed(const char *message)
 {
-    perror(message);
+    printf("%s\n", message);
     exit(1); 
 }
 
@@ -130,7 +125,7 @@ static int createServerSocket(unsigned short port)
 
     //Создание сокета для входящих подключений
     if ((servSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-        die("socket() failed");
+        serverMustBeClosed("socket() failed");
       
    //Задаём начальные параметры
     memset(&servAddr, 0, sizeof(servAddr));       // Заполняем структуру нулями
@@ -140,11 +135,11 @@ static int createServerSocket(unsigned short port)
 
     //Назначаем номер порта клиентскому сокету
     if (bind(servSock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
-        die("bind() failed");
+        serverMustBeClosed("bind() failed");
 
     //Отмечаем сколько сокет ждет запрос со стороны клиента
     if (listen(servSock, MAXPENDING) < 0)
-        die("listen() failed");
+        serverMustBeClosed("listen() failed");
 
     return servSock;
 }
@@ -155,154 +150,150 @@ void* threadMain(void *tparam)
     char loopstart = 0; // Старт бесконечного цикла сначала выключен
     //Приняли параметры в поток
     struct thread_param *param = (struct thread_param *)tparam;
-
     //Адрес клиента
     struct sockaddr_in clntAddr;
     char client_message[2048];
-
     int clntSock;
-
-    pthread_mutex_lock( &mymutex ); //лочим мьютекс
-
-    if(clntSock = queue_get(&thread_q))
+    //Основной цикл, в котором обрабатывается текущий клиент
+    for(;;)
     {
-        if (clntSock < 0)
-            die("accept() failed");
-        else
-            loopstart = 1; //включаем бесконечный цикл
-    }
+        pthread_mutex_lock( &mymutex ); //лочим мьютекс
 
-    pthread_mutex_unlock( &mymutex ); //анлочим мьютекс
+        if(clntSock = queue_get(&thread_q))
+        {
+            if (clntSock < 0)
+                serverMustBeClosed("accept() failed");
+            else
+                loopstart = 1; //включаем бесконечный цикл
+        }
+
+        pthread_mutex_unlock( &mymutex ); //анлочим мьютекс
     
-    if(loopstart == 1)
-    {   
-        //Проверка присланного клиентом пароля
-        int bytes_r;
-        char user_name[2048], pass_name[2048], fname[50];
-        bytes_r = recv(clntSock, user_name, 2048, 0);
-        user_name[bytes_r] = '\0';
-        bytes_r = recv(clntSock, pass_name, 2048, 0);
-	pass_name[bytes_r] = '\0';
-        char chk[100],fi[100],fpass[100];
-        int y = 0;
-        //Считаем пароли для сверки из файла и проверяем
-	FILE *fp = fopen("pass.txt","r");
-	while(!feof(fp))
-	{	
-            fscanf(fp, "%s", fname);
-            fscanf(fp, "%s", fpass);
-	    strcpy(fi, fpass);
-	    if((strcmp(fi, pass_name) == 0) && (strcmp(fname, user_name) == 0))
-	    {	
-                y++;
-	    }
-       }
-       fclose(fp);
-       if(y < 0 || y == 0)
-       {
-           write(clntSock , "adenied" , 7);
-       }
-       else
-       {
-           write(clntSock , "agranted" , 8);
-           puts("Client connected");
-          
-           chdir(user_name);
-           int read_size;
-
-           for(;;)
-           {
-               //Получаем сообщение от клиента
-               read_size = recv(clntSock , client_message , 2048 , 0);
+        if(loopstart == 1)
+        {   
+            //Проверка присланного клиентом пароля
+            int bytes_r;
+            char user_name[2048], pass_name[2048], fname[50];
+            bytes_r = recv(clntSock, user_name, 2048, 0);
+            user_name[bytes_r] = '\0';
+            bytes_r = recv(clntSock, pass_name, 2048, 0);
+            pass_name[bytes_r] = '\0';
+            char chk[100],fi[100],fpass[100];
+            int y = 0;
+            //Считаем пароли для сверки из файла и проверяем
+            FILE *fp = fopen("pass.txt","r");
+            while(!feof(fp))
+            {	
+                fscanf(fp, "%s", fname);
+                fscanf(fp, "%s", fpass);
+	        strcpy(fi, fpass);
+	        if((strcmp(fi, pass_name) == 0) && (strcmp(fname, user_name) == 0))
+	        {	
+                    y++;
+	        }
+            }
+            fclose(fp);
+            if(y < 0 || y == 0)
+            {
+                write(clntSock , "adenied" , 7);
+            }
+            else
+            {
+                write(clntSock , "agranted" , 8);
+                puts("Client connected");
+                chdir(user_name);
+                int read_size;
+                //Цикл, в котором получаем данные от клиента
+                for(;;)
+                {
+                    //Получаем сообщение от клиента
+                    read_size = recv(clntSock , client_message , 2048 , 0);
                
-               //Если что-то пришло от клиента и он не отключился, то пытаемся разобраться, что же с этим делать
-               if(read_size > 0)
-               {
-                   //Завершение работы сервера командой клиента
-                   if(strstr(client_message, "serverclose"))
-                   {
-                       write(clntSock , "serverclose", 11);
-                       goto endServer;
-                   }
-                   //Команда напоминания пароля пользователю
-                   else if(strstr(client_message, "remindpass"))
-                   {
-                       //Отправляем обратно клиенту
-         	       write(clntSock , pass_name, 50);
-                       //Зачистка от мусора прошлой присланной строки от этого клиента
-                       memset(&client_message, ' ', 100);
-                   }
-                   //Команда напоминания команд
-                   else if(strstr(client_message, "help"))
-                   {
-                       //Отправляем обратно клиенту
-		       write(clntSock , "help", 4);
-                       //Зачистка от мусора прошлой присланной строки от этого клиента
-                       memset(&client_message, ' ', 100);
-                   }
-                   //Команда закрытия клиента
-                   else if(strstr(client_message, "clientclose"))
-                   {
-                       //Отправляем обратно клиенту
-		       write(clntSock , "clientclose", 11);
-                       //Зачистка от мусора прошлой присланной строки от этого клиента
-                       memset(&client_message, ' ', 100);
-                   }
-		   else
-                   {   
-                       //Зануляем буферную переменную, куда всё будем копировать
-                       buf[0] = '\0';
-                       //Копируем в буферную переменную сначала команду от клиента, а потом команду логгирования в файл
-                       strcat(buf, client_message);
-                       strcat(buf, " | tee logfile.txt");
-                       //Выполняем команду, образовавшуюся в буферной переменной, на сервере
-                       system(buf);
+                    //Если что-то пришло от клиента и он не отключился, то пытаемся разобраться, что же с этим делать
+                    if(read_size > 0)
+                    {
+                        //Завершение работы сервера командой клиента
+                        if(strstr(client_message, "serverclose"))
+                        {
+                            write(clntSock , "serverclose", 11);
+                            goto endServer;
+                        }
+                        //Команда напоминания пароля пользователю
+                        else if(strstr(client_message, "remindpass"))
+                        {
+                            //Отправляем обратно клиенту
+         	            write(clntSock , pass_name, 50);
+                            //Зачистка от мусора прошлой присланной строки от этого клиента
+                            memset(&client_message, ' ', 100);
+                        }
+                        //Команда напоминания команд
+                        else if(strstr(client_message, "help"))
+                        {
+                            //Отправляем обратно клиенту
+		            write(clntSock , "help", 4);
+                            //Зачистка от мусора прошлой присланной строки от этого клиента
+                            memset(&client_message, ' ', 100);
+                        }
+                        //Команда закрытия клиента
+                        else if(strstr(client_message, "clientclose"))
+                        {
+                            //Отправляем обратно клиенту
+		            write(clntSock , "clientclose", 11);
+                            //Зачистка от мусора прошлой присланной строки от этого клиента
+                            memset(&client_message, ' ', 100);
+                        }
+		        else
+                        {   
+                            //Зануляем буферную переменную, куда всё будем копировать
+                            buf[0] = '\0';
+                            //Копируем в буферную переменную сначала команду от клиента, а потом команду логгирования в файл
+                            strcat(buf, client_message);
+                            strcat(buf, " | tee logfile.txt");
+                            //Выполняем команду, образовавшуюся в буферной переменной, на сервере
+                            system(buf);
 
-                       //Зануляем буферную переменную, куда всё будем копировать. Старое уже не надо
-                       buf[0] = '\0';
-                       //Соединяем файл в строку построчно
-                       FILE *fsend;
-                       char line[256];
-                       fsend = fopen("logfile.txt", "r");
-                       int first = 0;
-                       while(fgets(line, sizeof(line), fsend) != NULL)
-                       {  
-                           if(first == 0)
-                           {
-                               strcat(buf, "\n");
-                               strcat(buf, line);
-                               first = 1;
-                           }
-                           else
-  		               strcat(buf, line);
-                       }
-                       fclose(fsend);   
-                       //Отправляем весь файл
-                       write(clntSock, buf , 2048);                 
+                            //Зануляем буферную переменную, куда всё будем копировать. Старое уже не надо
+                            buf[0] = '\0';
+                            //Соединяем файл в строку построчно
+                            FILE *fsend;
+                            char line[256];
+                            fsend = fopen("logfile.txt", "r");
+                            int first = 0;
+                            while(fgets(line, sizeof(line), fsend) != NULL)
+                            {  
+                                if(first == 0)
+                                {
+                                    strcat(buf, "\n");
+                                    strcat(buf, line);
+                                    first = 1;
+                                }
+                                else
+  		                    strcat(buf, line);
+                            }
+                            fclose(fsend);   
+                            //Отправляем весь файл
+                            write(clntSock, buf , 2048);                 
     
-                       //Зачистка от мусора прошлой присланной строки от этого клиента
-                       memset(&client_message, ' ', 100);
-                       client_message[0] = '\0';
-                       //Удаляем файл, чтобы в следующий раз начать лог сначала
-                       system("rm logfile.txt");
-                   }
-               }
-               else //А если клиент был отключен
-               {
-                   puts("Client disconnected");
-                   loopstart = 0;
-                   close(clntSock);
-                   break;
-               }
-           }
-           puts("Break works");
-
-       }
-   }	
-endServer:
-   puts("endserv");
-   //exit(1); 
-   
+                            //Зачистка от мусора прошлой присланной строки от этого клиента
+                            memset(&client_message, ' ', 100);
+                            client_message[0] = '\0';
+                            //Удаляем файл, чтобы в следующий раз начать лог сначала
+                            system("rm logfile.txt");
+                        }
+                    }   
+                    else //А если клиент был отключен
+                    {
+                        puts("Client disconnected");
+                        loopstart = 0;
+                        close(clntSock);
+                        break;
+                    }
+                }   
+            }   
+        }   
+    }   
+    endServer:
+        serverMustBeClosed("Server closed");
 }
 
 int main(int argc, char *argv[])
