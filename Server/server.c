@@ -46,7 +46,7 @@ void queue_init(struct queue *q)
 void queue_destroy(struct queue *q)
 {
     struct message * temp;
-    pthread_mutex_lock(&q->mutex);
+    pthread_mutex_lock(&q -> mutex);
     while(q -> first)
     {
         temp = q -> first -> next;
@@ -56,7 +56,7 @@ void queue_destroy(struct queue *q)
     free(q -> last);
     pthread_mutex_unlock(&q -> mutex);
     pthread_mutex_destroy(&q -> mutex);
-    pthread_cond_destroy(&q-> cond);
+    pthread_cond_destroy(&q -> cond);
 }
 
 //Добавление в очередь
@@ -75,9 +75,9 @@ void queue_put(struct queue *q, int sock)
     }
     else
     {
-        q->last->next = msg; 
+        q -> last -> next = msg; 
         q -> last = msg;
-        q -> length ++;
+        q -> length++;
     }
     pthread_cond_signal(&q -> cond);
     pthread_mutex_unlock(&q -> mutex);
@@ -210,6 +210,9 @@ void* threadMain(void *tparam)
             if(y < 0 || y == 0)
             {
                 write(clntSock , "adenied" , 7);
+                puts("Incorrect client disconnected");
+                loopstart = 0;
+                close(clntSock);
             }
             else
             {
